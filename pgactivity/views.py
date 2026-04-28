@@ -71,8 +71,14 @@ def shorten(term: Terminal, text: str, width: int | None = None) -> str:
     """
     if not text:
         return ""
-    wrapped = term.wrap(text, width=width, max_lines=1)
-    return wrapped[0] + term.normal
+    if width is None:
+        width = term.width
+    # Use word-aware wrapping for longer text, but fall back to truncate for very short widths
+    wrapped = term.wrap(text, width=width)
+    if wrapped:
+        return wrapped[0] + term.normal
+    # Fall back to truncate for edge cases
+    return term.truncate(text, width) + term.normal
 
 
 def limit(func: Callable[..., Iterable[str]]) -> Callable[..., None]:

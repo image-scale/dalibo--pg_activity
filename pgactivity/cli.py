@@ -113,7 +113,6 @@ def get_parser(prog: str = "pg_activity") -> ArgumentParser:
     )
     options_group.add_argument(
         "--db-size",
-        "--no-db-size",
         dest="dbsize",
         action=BooleanOptionalAction,
         default=True,
@@ -121,7 +120,6 @@ def get_parser(prog: str = "pg_activity") -> ArgumentParser:
     )
     options_group.add_argument(
         "--tempfiles",
-        "--no-tempfiles",
         dest="tempfiles",
         action=BooleanOptionalAction,
         default=None,
@@ -129,7 +127,6 @@ def get_parser(prog: str = "pg_activity") -> ArgumentParser:
     )
     options_group.add_argument(
         "--walreceiver",
-        "--no-walreceiver",
         dest="walreceiver",
         action=BooleanOptionalAction,
         default=None,
@@ -238,7 +235,6 @@ def get_parser(prog: str = "pg_activity") -> ArgumentParser:
     )
     display_group.add_argument(
         "--pid",
-        "--no-pid",
         dest="pid",
         action=BooleanOptionalAction,
         default=None,
@@ -246,7 +242,6 @@ def get_parser(prog: str = "pg_activity") -> ArgumentParser:
     )
     display_group.add_argument(
         "--xmin",
-        "--no-xmin",
         dest="xmin",
         action=BooleanOptionalAction,
         default=None,
@@ -254,7 +249,6 @@ def get_parser(prog: str = "pg_activity") -> ArgumentParser:
     )
     display_group.add_argument(
         "--database",
-        "--no-database",
         dest="database",
         action=BooleanOptionalAction,
         default=None,
@@ -262,7 +256,6 @@ def get_parser(prog: str = "pg_activity") -> ArgumentParser:
     )
     display_group.add_argument(
         "--user",
-        "--no-user",
         dest="user",
         action=BooleanOptionalAction,
         default=None,
@@ -270,7 +263,6 @@ def get_parser(prog: str = "pg_activity") -> ArgumentParser:
     )
     display_group.add_argument(
         "--client",
-        "--no-client",
         dest="client",
         action=BooleanOptionalAction,
         default=None,
@@ -278,23 +270,20 @@ def get_parser(prog: str = "pg_activity") -> ArgumentParser:
     )
     display_group.add_argument(
         "--cpu",
-        "--no-cpu",
         dest="cpu",
         action=BooleanOptionalAction,
         default=None,
-        help="Enable/disable CPU%.",
+        help="Enable/disable CPU%%.",
     )
     display_group.add_argument(
         "--mem",
-        "--no-mem",
         dest="mem",
         action=BooleanOptionalAction,
         default=None,
-        help="Enable/disable MEM%.",
+        help="Enable/disable MEM%%.",
     )
     display_group.add_argument(
         "--read",
-        "--no-read",
         dest="read",
         action=BooleanOptionalAction,
         default=None,
@@ -302,7 +291,6 @@ def get_parser(prog: str = "pg_activity") -> ArgumentParser:
     )
     display_group.add_argument(
         "--write",
-        "--no-write",
         dest="write",
         action=BooleanOptionalAction,
         default=None,
@@ -310,7 +298,6 @@ def get_parser(prog: str = "pg_activity") -> ArgumentParser:
     )
     display_group.add_argument(
         "--time",
-        "--no-time",
         dest="time",
         action=BooleanOptionalAction,
         default=None,
@@ -318,7 +305,6 @@ def get_parser(prog: str = "pg_activity") -> ArgumentParser:
     )
     display_group.add_argument(
         "--wait",
-        "--no-wait",
         dest="wait",
         action=BooleanOptionalAction,
         default=None,
@@ -326,7 +312,6 @@ def get_parser(prog: str = "pg_activity") -> ArgumentParser:
     )
     display_group.add_argument(
         "--app-name",
-        "--no-app-name",
         dest="appname",
         action=BooleanOptionalAction,
         default=None,

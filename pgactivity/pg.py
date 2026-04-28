@@ -85,6 +85,12 @@ def fetchone(
         if text_as_bytes and mkrow is not None:
             # Convert text fields to bytes if needed
             row = {k: v.encode() if isinstance(v, str) else v for k, v in row.items()}
+        elif not text_as_bytes:
+            # Ensure text fields are strings, not bytes
+            row = {
+                k: v.decode("utf-8", errors="replace") if isinstance(v, bytes) else v
+                for k, v in row.items()
+            }
         if mkrow is not None:
             return mkrow(**row)
         return row
@@ -109,6 +115,15 @@ def fetchall(
             # Convert text fields to bytes if needed
             rows = [
                 {k: v.encode() if isinstance(v, str) else v for k, v in row.items()}
+                for row in rows
+            ]
+        elif not text_as_bytes:
+            # Ensure text fields are strings, not bytes
+            rows = [
+                {
+                    k: v.decode("utf-8", errors="replace") if isinstance(v, bytes) else v
+                    for k, v in row.items()
+                }
                 for row in rows
             ]
         if mkrow is not None:
@@ -153,7 +168,60 @@ def decode(value: bytes, encoding: bytes | str, errors: str = "strict") -> str:
     'hello'
     >>> decode(b'hello', 'utf-8')
     'hello'
+    >>> decode(b'hello', 'SQL_ASCII')
+    'hello'
     """
     if isinstance(encoding, bytes):
         encoding = encoding.decode("ascii")
-    return value.decode(encoding, errors=errors)
+
+    # Map PostgreSQL encoding names to Python encoding names
+    pg_to_python = {
+        "SQL_ASCII": "ascii",
+        "UTF8": "utf-8",
+        "LATIN1": "iso-8859-1",
+        "LATIN2": "iso-8859-2",
+        "LATIN3": "iso-8859-3",
+        "LATIN4": "iso-8859-4",
+        "LATIN5": "iso-8859-9",
+        "LATIN6": "iso-8859-10",
+        "LATIN7": "iso-8859-13",
+        "LATIN8": "iso-8859-14",
+        "LATIN9": "iso-8859-15",
+        "LATIN10": "iso-8859-16",
+        "EUC_JP": "euc-jp",
+        "EUC_CN": "euc-cn",
+        "EUC_KR": "euc-kr",
+        "EUC_TW": "big5",  # EUC_TW is similar to Big5
+        "SJIS": "shift-jis",
+        "BIG5": "big5",
+        "GBK": "gbk",
+        "GB18030": "gb18030",
+        "UHC": "cp949",
+        "JOHAB": "johab",
+        "WIN1250": "cp1250",
+        "WIN1251": "cp1251",
+        "WIN1252": "cp1252",
+        "WIN1253": "cp1253",
+        "WIN1254": "cp1254",
+        "WIN1255": "cp1255",
+        "WIN1256": "cp1256",
+        "WIN1257": "cp1257",
+        "WIN1258": "cp1258",
+        "WIN866": "cp866",
+        "WIN874": "cp874",
+        "KOI8R": "koi8-r",
+        "KOI8U": "koi8-u",
+        "ISO_8859_5": "iso-8859-5",
+        "ISO_8859_6": "iso-8859-6",
+        "ISO_8859_7": "iso-8859-7",
+        "ISO_8859_8": "iso-8859-8",
+    }
+
+    encoding_upper = encoding.upper()
+    python_encoding = pg_to_python.get(encoding_upper, encoding)
+
+    try:
+        return value.decode(python_encoding, errors=errors)
+    except LookupError:
+        # If still unknown, try with ascii as fallback
+        return value.decode("ascii", errors=errors)
