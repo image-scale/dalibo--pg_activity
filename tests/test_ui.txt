@@ -1,0 +1,1397 @@
+Functional tests for 'ui' module
+--------------------------------
+
+>>> from datetime import timedelta
+>>> import functools
+>>> import argparse
+>>> import os
+>>> import time
+>>> from unittest.mock import patch
+
+>>> import blessed
+>>> from blessed.keyboard import Keystroke
+
+>>> from pgactivity import config, data, types, ui, widgets
+
+>>> postgres = getfixture("postgresql")
+
+Default CLI options, passed to ui.main():
+>>> defaults = {
+...     "blocksize": 4096,
+...     "dbname": f"{postgres.info.dbname}",
+...     "durationmode": "1",
+...     "help": False,
+...     "host": f"{postgres.info.host}",
+...     "legacy_ui": False,
+...     "refresh": 2,
+...     "minduration": 0,
+...     "filters": [],
+...     "appname": False,
+...     "client": True,
+...     "color": True,
+...     "cpu": False,
+...     "database": True,
+...     "dbsize": True,
+...     "tempfiles": True,
+...     "walreceiver": True,
+...     "mem": False,
+...     "pid": True,
+...     "read": False,
+...     "time": False,
+...     "user": True,
+...     "wait": False,
+...     "write": False,
+...     "xmin": False,
+...     "output": None,
+...     "port": f"{postgres.info.port}",
+...     "rds": False,
+...     "username": f"{postgres.info.user}",
+...     "wrap_query": False,
+...     "header_show_instance": True,
+...     "header_show_workers": True,
+...     "header_show_system": True,
+... }
+>>> options = argparse.Namespace(**defaults)
+
+>>> os.environ["LINES"] = "26"
+>>> term = blessed.Terminal(force_styling=None)
+>>> term.width, term.height
+(80, 26)
+
+>>> def mkconfig(value):
+...     return config.Configuration(
+...         name="ui-tests",
+...         values={k: config.UISection(**v) for k, v in value.items()},
+... )
+>>> CONFIG = mkconfig({"database": {"width": 9}, "client": {"width": 12}})
+
+>>> def run_ui(options, keys, config=CONFIG, expected_timeouts=None,
+...            render_header=True, render_footer=False,
+...            width=200):
+...     """Wrapper to ui.main() with a fake term.inkey()."""
+...
+...     host = types.Host(
+...         "test",
+...         postgres.info.user,
+...         postgres.info.host,
+...         postgres.info.port,
+...         postgres.info.dbname,
+...     )
+...     dataobj = data.Data.pg_connect(
+...         host=postgres.info.host,
+...         port=postgres.info.port,
+...         user=postgres.info.user,
+...         database=postgres.info.dbname,
+...         min_duration=options.minduration,
+...     )
+...
+...     call_args_list = []
+...
+...     def inkey(*, timeout):
+...         call_args_list.append(timeout)
+...         key = keys.pop(0)
+...         if isinstance(key, dict):
+...             ks = Keystroke(**key)
+...         else:
+...             ks = Keystroke(key)
+...         if render_footer:
+...             print()
+...         print(term.center(f" sending key '{ks}' ", fillchar="-", width=width))
+...         return ks
+...
+...     with patch.object(term, "inkey", new=inkey):
+...         try:
+...             ui.main(term, config, dataobj, host, options,
+...                     render_header=render_header, render_footer=render_footer,
+...                     width=width, wait_on_actions=1)
+...         finally:
+...             dataobj.pg_conn.close()
+...
+...     if expected_timeouts is not None:
+...         assert call_args_list == expected_timeouts
+
+Force local mode and mock server and system info
+
+>>> pg_is_local_access = patch("pgactivity.data.Data.pg_is_local_access", return_value=True)
+>>> pg_get_server_information = patch(
+...     "pgactivity.data.Data.pg_get_server_information",
+...     return_value=types.ServerInformation(
+...             active_connections=1,
+...             idle=1,
+...             idle_in_transaction=10,
+...             idle_in_transaction_aborted=0,
+...             total=6,
+...             max_connections=100,
+...             autovacuum_workers=3,
+...             autovacuum_max_workers=3,
+...             logical_replication_workers=1,
+...             parallel_workers=2,
+...             wal_senders=1,
+...             wal_receivers=0,
+...             max_logical_replication_workers=8,
+...             max_parallel_workers=8,
+...             max_worker_processes=8,
+...             max_wal_senders=10,
+...             max_replication_slots=10,
+...             replication_slots=10,
+...             xact_count=1000,
+...             total_size=20480000,
+...             size_evolution=1024,
+...             blks_read=1,
+...             blks_hit=9,
+...             cache_hit_ratio_last_snap=90.1222,
+...             xact_commit=3,
+...             xact_rollback=12,
+...             rollback_ratio_last_snap=32.109,
+...             epoch=10000,
+...             uptime=timedelta(days=125, seconds=25, minutes=21, hours=3, weeks=1),
+...             tps=15,
+...             insert=100,
+...             update=200,
+...             delete=300,
+...             insert_per_second=10,
+...             update_per_second=20,
+...             delete_per_second=30,
+...             temporary_file=types.TempFileInfo(
+...                 temp_files=5,
+...                 temp_bytes=12054865,
+...             ),
+...             max_dbname_length=27,
+...             waiting=3,))
+>>> mem_swap_load = patch(
+...     "pgactivity.activities.mem_swap_load",
+...     return_value=(types.MemoryInfo(used=2, buff_cached=4, free=2, total=8),
+...                   types.SwapInfo(used=1, free=1, total=2),
+...                   types.LoadAverage(avg1=1, avg5=5, avg15=15)))
+>>> ps_complete = patch(
+...     "pgactivity.activities.ps_complete",
+...     return_value=([], types.IOCounter(100,200), types.IOCounter(200,300)))
+>>> ps_complete = patch(
+...     "pgactivity.activities.ps_complete",
+...     return_value=([], types.IOCounter(100,200), types.IOCounter(200,300)))
+>>> pg_get_server_information.start()
+<MagicMock name='pg_get_server_information' id='...'>
+>>> mem_swap_load.start()
+<MagicMock name='mem_swap_load' id='...'>
+>>> ps_complete.start()
+<MagicMock name='ps_complete' id='...'>
+>>> pg_is_local_access.start()
+<MagicMock name='pg_is_local_access' id='...'>
+
+No activity, first screen followed by help screen:
+
+>>> run_ui(options, ["s", "o", "i", "h", "z", "q"])  # doctest: +ELLIPSIS
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 2s - Duration mode: query
+ * Global: 132 days, 3 hours and 21 minutes uptime, 19.53M dbs size - 1.00K/s growth, 90.12% cache hit ratio, 32.11% rollback ratio
+   Sessions: 6/100 total, 1 active, 1 idle, 10 idle in txn, 0 idle in txn abrt, 3 waiting
+   Activity: 15 tps, 10 insert/s, 20 update/s, 30 delete/s, 5 temp files, 11.50M temp size
+ * Worker processes: 3/8 total, 1/8 logical workers, 2/8 parallel workers
+   Other processes & info: 3/3 autovacuum workers, 1/10 wal senders, 0 wal receivers, 10/10 repl. slots
+ * Mem.: 8B total, 2B (25.00%) free, 2B (25.00%) used, 4B (50.00%) buff+cached
+   Swap: 2B total, 1B (50.00%) free, 1B (50.00%) used
+   IO: 300/s max iops, 200B/s - 100/s read, 300B/s - 200/s write
+   Load average: 1 5 15
+                                RUNNING QUERIES
+PID    DATABASE              USER       CLIENT IOW              state Query
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key 's' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 2s - Duration mode: query
+ * Global: 132 days, 3 hours and 21 minutes uptime, 19.53M dbs size - 1.00K/s growth, 90.12% cache hit ratio, 32.11% rollback ratio
+   Sessions: 6/100 total, 1 active, 1 idle, 10 idle in txn, 0 idle in txn abrt, 3 waiting
+   Activity: 15 tps, 10 insert/s, 20 update/s, 30 delete/s, 5 temp files, 11.50M temp size
+ * Worker processes: 3/8 total, 1/8 logical workers, 2/8 parallel workers
+   Other processes & info: 3/3 autovacuum workers, 1/10 wal senders, 0 wal receivers, 10/10 repl. slots
+                                RUNNING QUERIES
+PID    DATABASE              USER       CLIENT IOW              state Query
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key 'o' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 2s - Duration mode: query
+ * Global: 132 days, 3 hours and 21 minutes uptime, 19.53M dbs size - 1.00K/s growth, 90.12% cache hit ratio, 32.11% rollback ratio
+   Sessions: 6/100 total, 1 active, 1 idle, 10 idle in txn, 0 idle in txn abrt, 3 waiting
+   Activity: 15 tps, 10 insert/s, 20 update/s, 30 delete/s, 5 temp files, 11.50M temp size
+                                RUNNING QUERIES
+PID    DATABASE              USER       CLIENT IOW              state Query
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key 'i' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 2s - Duration mode: query
+                                RUNNING QUERIES
+PID    DATABASE              USER       CLIENT IOW              state Query
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key 'h' --------------------------------------------------------------------------------------------
+pg_activity ... - https://github.com/dalibo/pg_activity
+Released under PostgreSQL License.
+<BLANKLINE>
+   Up/Down: scroll process list
+     Space: pause/unpause
+         c: sort by CPU% desc. (activities)
+         m: sort by MEM% desc. (activities)
+         r: sort by READ/s desc. (activities)
+         w: sort by WRITE/s desc. (activities)
+         t: sort by TIME+ desc. (activities)
+         +: increase refresh time (max:5s)
+         -: decrease refresh time (min:0.5s)
+         v: toggle query wrap
+         T: change duration mode
+         D: force refresh database size
+         R: force refresh
+         s: Display system information in header
+         i: Display general instance information in header
+         o: Display worker information in header
+         q: quit
+Mode
+      F1/1: running queries
+      F2/2: waiting queries
+      F3/3: blocking queries
+<BLANKLINE>
+Press any key to exit.
+------------------------------------------------------------------------------------------- sending key 'z' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 2s - Duration mode: query
+                                RUNNING QUERIES
+PID    DATABASE              USER       CLIENT IOW              state Query
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key 'q' --------------------------------------------------------------------------------------------
+
+Force non-local mode with the same mock data (and reset the term size)
+
+>>> os.environ["LINES"] = "25"
+>>> term = blessed.Terminal(force_styling=None)
+>>> term.width, term.height
+(80, 25)
+
+>>> pg_is_local_access = patch("pgactivity.data.Data.pg_is_local_access", return_value=False)
+>>> pg_is_local_access.start()
+<MagicMock name='pg_is_local_access' id='...'>
+
+>>> run_ui(options, ["h","z","q"])  # doctest: +ELLIPSIS
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 2s - Duration mode: query
+ * Global: 132 days, 3 hours and 21 minutes uptime, 19.53M dbs size - 1.00K/s growth, 90.12% cache hit ratio, 32.11% rollback ratio
+   Sessions: 6/100 total, 1 active, 1 idle, 10 idle in txn, 0 idle in txn abrt, 3 waiting
+   Activity: 15 tps, 10 insert/s, 20 update/s, 30 delete/s, 5 temp files, 11.50M temp size
+ * Worker processes: 3/8 total, 1/8 logical workers, 2/8 parallel workers
+   Other processes & info: 3/3 autovacuum workers, 1/10 wal senders, 0 wal receivers, 10/10 repl. slots
+                                RUNNING QUERIES
+PID    DATABASE              USER       CLIENT             state Query
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key 'h' --------------------------------------------------------------------------------------------
+pg_activity ... - https://github.com/dalibo/pg_activity
+Released under PostgreSQL License.
+<BLANKLINE>
+   Up/Down: scroll process list
+     Space: pause/unpause
+         +: increase refresh time (max:5s)
+         -: decrease refresh time (min:0.5s)
+         v: toggle query wrap
+         T: change duration mode
+         D: force refresh database size
+         R: force refresh
+         i: Display general instance information in header
+         o: Display worker information in header
+         q: quit
+Mode
+      F1/1: running queries
+      F2/2: waiting queries
+      F3/3: blocking queries
+<BLANKLINE>
+Press any key to exit.
+------------------------------------------------------------------------------------------- sending key 'z' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 2s - Duration mode: query
+ * Global: 132 days, 3 hours and 21 minutes uptime, 19.53M dbs size - 1.00K/s growth, 90.12% cache hit ratio, 32.11% rollback ratio
+   Sessions: 6/100 total, 1 active, 1 idle, 10 idle in txn, 0 idle in txn abrt, 3 waiting
+   Activity: 15 tps, 10 insert/s, 20 update/s, 30 delete/s, 5 temp files, 11.50M temp size
+ * Worker processes: 3/8 total, 1/8 logical workers, 2/8 parallel workers
+   Other processes & info: 3/3 autovacuum workers, 1/10 wal senders, 0 wal receivers, 10/10 repl. slots
+                                RUNNING QUERIES
+PID    DATABASE              USER       CLIENT             state Query
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key 'q' --------------------------------------------------------------------------------------------
+
+>>> defaults["pid"] = False
+>>> defaults["header_show_instance"] = False
+>>> defaults["header_show_workers"] = False
+>>> defaults["header_show_system"] = False
+>>> options = argparse.Namespace(**defaults)
+
+One query, idle in transaction:
+>>> _ = postgres.execute("SELECT pg_sleep(0)")
+
+Change refresh time, pause, change duration mode, change sort order, unpause,
+change query mode then quit:
+
+>>> keys = ["-", "-", "+", " ", "T", "3", "r", " ", "T", "c", "2", "1", "3", "q"]
+>>> expected_timeouts = [2.0, 1.0, 0.5, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
+>>> assert len(keys) == len(expected_timeouts)
+>>> run_ui(options, keys, expected_timeouts=expected_timeouts)  # doctest: +ELLIPSIS
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 2s - Duration mode: query
+                                RUNNING QUERIES
+DATABASE              USER       CLIENT             state Query
+tests             postgres    127.0.0.1     idle in trans SELECT pg_sleep(0)
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key '-' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 1s - Duration mode: query
+                                RUNNING QUERIES
+DATABASE              USER       CLIENT             state Query
+tests             postgres    127.0.0.1     idle in trans SELECT pg_sleep(0)
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key '-' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 0.5s - Duration mode: query
+                                RUNNING QUERIES
+DATABASE              USER       CLIENT             state Query
+tests             postgres    127.0.0.1     idle in trans SELECT pg_sleep(0)
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key '+' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 1s - Duration mode: query
+                                RUNNING QUERIES
+DATABASE              USER       CLIENT             state Query
+tests             postgres    127.0.0.1     idle in trans SELECT pg_sleep(0)
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key ' ' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 1s - Duration mode: query
+                                     PAUSE
+DATABASE              USER       CLIENT             state Query
+tests             postgres    127.0.0.1     idle in trans SELECT pg_sleep(0)
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key 'T' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 1s - Duration mode: query
+                                     PAUSE
+DATABASE              USER       CLIENT             state Query
+tests             postgres    127.0.0.1     idle in trans SELECT pg_sleep(0)
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key '3' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 1s - Duration mode: query
+                                     PAUSE
+DATABASE              USER       CLIENT             state Query
+tests             postgres    127.0.0.1     idle in trans SELECT pg_sleep(0)
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key 'r' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 1s - Duration mode: query
+                                     PAUSE
+DATABASE              USER       CLIENT             state Query
+tests             postgres    127.0.0.1     idle in trans SELECT pg_sleep(0)
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key ' ' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 1s - Duration mode: query
+                                RUNNING QUERIES
+DATABASE              USER       CLIENT             state Query
+tests             postgres    127.0.0.1     idle in trans SELECT pg_sleep(0)
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key 'T' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 1s - Duration mode: transaction
+                                RUNNING QUERIES
+DATABASE              USER       CLIENT             state Query
+tests             postgres    127.0.0.1     idle in trans SELECT pg_sleep(0)
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key 'c' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 1s - Duration mode: transaction
+                                RUNNING QUERIES
+DATABASE              USER       CLIENT             state Query
+tests             postgres    127.0.0.1     idle in trans SELECT pg_sleep(0)
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key '2' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 1s - Duration mode: transaction
+                                WAITING QUERIES
+DATABASE              USER       CLIENT  RELATION             TYPE             MODE             state Query
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key '1' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 1s - Duration mode: transaction
+                                RUNNING QUERIES
+DATABASE              USER       CLIENT             state Query
+tests             postgres    127.0.0.1     idle in trans SELECT pg_sleep(0)
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key '3' --------------------------------------------------------------------------------------------
+PostgreSQL ... - test - postgres@127.0.0.1:.../tests - Ref.: 1s - Duration mode: transaction
+                                BLOCKING QUERIES
+DATABASE              USER       CLIENT  RELATION             TYPE             MODE             state Query
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------------------------------------------------------------------- sending key 'q' --------------------------------------------------------------------------------------------
+
+
+Another idle transaction, with a long query:
+>>> _ = postgres.execute("CREATE TABLE persons (firstname text, lastname text, age int, address text)")
+
+Use another set of options:
+>>> output = getfixture("tmp_path") / "activities.csv"
+>>> options = argparse.Namespace(
+...     **dict(
+...         defaults,
+...         durationmode="2",
+...         wrap_query=True,
+...         client=False,
+...         dbsize=False,
+...         tempfiles=True,
+...         user=None,
+...         walreceiver=True,
+...         output=str(output),
+...     ),
+... )
+>>> cfg = mkconfig({
+...     "client": {"hidden": False},
+...     "state": {"width": 6},
+...     "database": {"width": 10},
+...     "user": {"hidden": True},
+... })
+>>> run_ui(options, ["D", "v", "q"], config=cfg, width=80, render_header=False)
+                                RUNNING QUERIES
+DATABASE    state Query
+tests      idle i CREATE TABLE persons (firstname text, lastname text, age int,
+                   address text)
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------- sending key 'D' --------------------------------
+                                RUNNING QUERIES
+DATABASE    state Query
+tests      idle i CREATE TABLE persons (firstname text, lastname text, age int,
+                   address text)
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------- sending key 'v' --------------------------------
+                                RUNNING QUERIES
+DATABASE    state Query
+tests      idle i CREATE TABLE persons (firstname text, lastname text, age int,
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+------------------------------- sending key 'q' --------------------------------
+>>> with output.open() as f:
+...     lines = f.readlines()
+>>> len(lines)
+4
+
+>>> _ = postgres.execute("CREATE TABLE t (s text)")
+>>> _ = postgres.execute("INSERT INTO t VALUES ('init')")
+>>> postgres.commit()
+
+
+
+Interactive mode:
+
+>>> execute = getfixture("execute")
+>>> execute("SELECT 42")
+>>> execute("SELECT 43")
+>>> execute("UPDATE t SET s = 'blocking'")
+>>> execute("UPDATE t SET s = 'waiting'", commit=True)
+>>> time.sleep(1)
+
+>>> options = argparse.Namespace(
+...     **dict(
+...         defaults,
+...         durationmode="1",
+...         wrap_query=True,
+...         pid=True,
+...         client=False,
+...         user=False,
+...         output=None,
+...     ),
+... )
+
+(Note: we patch boxed() widget to disable border in order to make output
+independent of the number of digits in PIDs.)
+
+>>> keys = ["j", "j", "y", "q"]
+>>> with patch.object(
+...     widgets, "boxed", new=functools.partial(widgets.boxed, border=False),
+... ):
+...     run_ui(options, keys, render_footer=True, render_header=False, width=140)  # doctest: +ELLIPSIS,+NORMALIZE_WHITESPACE
+                                RUNNING QUERIES
+PID    DATABASE              state Query
+...    tests         idle in trans SELECT 42
+...    tests         idle in trans SELECT 43
+...    tests         idle in trans UPDATE t SET s = 'blocking'
+...    tests                active UPDATE t SET s = 'waiting'
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+F1/1 Running queries   F2/2 Waiting queries   F3/3 Blocking queries  Space Pause/unpause    q Quit                 h Help                   
+------------------------------------------------------------- sending key 'j' --------------------------------------------------------------
+                                RUNNING QUERIES
+PID    DATABASE              state Query
+...    tests         idle in trans SELECT 42
+...    tests         idle in trans SELECT 43
+...    tests         idle in trans UPDATE t SET s = 'blocking'
+...    tests                active UPDATE t SET s = 'waiting'
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+C Cancel current query     K Terminate underlying ses Space Tag/untag current qu Other Back to activities   q Quit                          
+------------------------------------------------------------- sending key 'j' --------------------------------------------------------------
+                                RUNNING QUERIES
+PID    DATABASE              state Query
+...    tests         idle in trans SELECT 43
+...    tests         idle in trans UPDATE t SET s = 'blocking'
+...    tests                active UPDATE t SET s = 'waiting'
+...    tests         idle in trans SELECT 42
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+C Cancel current query     K Terminate underlying ses Space Tag/untag current qu Other Back to activities   q Quit                          
+------------------------------------------------------------- sending key 'y' --------------------------------------------------------------
+                                RUNNING QUERIES
+PID    DATABASE              state Query
+...    tests         idle in trans SELECT 43
+...    tests         idle in trans UPDATE t SET s = 'blocking'
+...    tests                active UPDATE t SET s = 'waiting'
+...    tests         idle in trans SELECT 42
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+                   query of process ... copied to clipboard
+------------------------------------------------------------- sending key 'q' --------------------------------------------------------------
+
+>>> key_down = {"ucs": "KEY_DOWN", "name": "KEY_DOWN"}
+>>> keys = [key_down, "2", "3", "1", key_down, "C", "n", "K", "y",
+...         key_down, " ", "j", " ", "K", "y", "q"]
+>>> with patch.object(
+...     widgets, "boxed", new=functools.partial(widgets.boxed, border=False),
+... ):
+...     run_ui(options, keys, render_footer=True, render_header=False, width=140)  # doctest: +ELLIPSIS,+NORMALIZE_WHITESPACE
+                                                              RUNNING QUERIES
+PID    DATABASE                      state   Query
+...    tests                 idle in trans   SELECT 42
+...    tests                 idle in trans   SELECT 43
+...    tests                 idle in trans   UPDATE t SET s = 'blocking'
+...    tests                        active   UPDATE t SET s = 'waiting'
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+F1/1 Running queries   F2/2 Waiting queries   F3/3 Blocking queries  Space Pause/unpause    q Quit                 h Help                   
+---------------------------------------------------------- sending key 'KEY_DOWN' ----------------------------------------------------------
+                                                              RUNNING QUERIES
+PID    DATABASE                      state   Query
+...    tests                 idle in trans   SELECT 42
+...    tests                 idle in trans   SELECT 43
+...    tests                 idle in trans   UPDATE t SET s = 'blocking'
+...    tests                        active   UPDATE t SET s = 'waiting'
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+C Cancel current query     K Terminate underlying ses Space Tag/untag current qu Other Back to activities   q Quit                          
+------------------------------------------------------------- sending key '2' --------------------------------------------------------------
+                                                              WAITING QUERIES
+PID    DATABASE          RELATION             TYPE             MODE              state   Query
+...    tests                         transactionid        ShareLock             active   UPDATE t SET s = 'waiting'
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+F1/1 Running queries   F2/2 Waiting queries   F3/3 Blocking queries  Space Pause/unpause    q Quit                 h Help                   
+------------------------------------------------------------- sending key '3' --------------------------------------------------------------
+                                                              BLOCKING QUERIES
+PID    DATABASE          RELATION             TYPE             MODE              state   Query
+...    tests                         transactionid    ExclusiveLock      idle in trans   UPDATE t SET s = 'blocking'
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+F1/1 Running queries   F2/2 Waiting queries   F3/3 Blocking queries  Space Pause/unpause    q Quit                 h Help                   
+------------------------------------------------------------- sending key '1' --------------------------------------------------------------
+                                                              RUNNING QUERIES
+PID    DATABASE                      state   Query
+...    tests                 idle in trans   SELECT 42
+...    tests                 idle in trans   SELECT 43
+...    tests                 idle in trans   UPDATE t SET s = 'blocking'
+...    tests                        active   UPDATE t SET s = 'waiting'
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+F1/1 Running queries   F2/2 Waiting queries   F3/3 Blocking queries  Space Pause/unpause    q Quit                 h Help                   
+---------------------------------------------------------- sending key 'KEY_DOWN' ----------------------------------------------------------
+                                                              RUNNING QUERIES
+PID    DATABASE                      state   Query
+...    tests                 idle in trans   SELECT 42
+...    tests                 idle in trans   SELECT 43
+...    tests                 idle in trans   UPDATE t SET s = 'blocking'
+...    tests                        active   UPDATE t SET s = 'waiting'
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+C Cancel current query     K Terminate underlying ses Space Tag/untag current qu Other Back to activities   q Quit                          
+------------------------------------------------------------- sending key 'C' --------------------------------------------------------------
+<BLANKLINE>
+                                                Confirm cancel action on process  ...? (y/n)
+<BLANKLINE>
+------------------------------------------------------------- sending key 'n' --------------------------------------------------------------
+                                                              RUNNING QUERIES
+PID    DATABASE                      state   Query
+...    tests                 idle in trans   SELECT 42
+...    tests                 idle in trans   SELECT 43
+...    tests                 idle in trans   UPDATE t SET s = 'blocking'
+...    tests                        active   UPDATE t SET s = 'waiting'
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+C Cancel current query     K Terminate underlying ses Space Tag/untag current qu Other Back to activities   q Quit                          
+------------------------------------------------------------- sending key 'K' --------------------------------------------------------------
+<BLANKLINE>
+                                              Confirm terminate action on process  ...? (y/n)
+<BLANKLINE>
+------------------------------------------------------------- sending key 'y' --------------------------------------------------------------
+                                                              RUNNING QUERIES
+PID    DATABASE                      state   Query
+...    tests                 idle in trans   SELECT 43
+...    tests                 idle in trans   UPDATE t SET s = 'blocking'
+...    tests                        active   UPDATE t SET s = 'waiting'
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+                             Process ... terminated
+---------------------------------------------------------- sending key 'KEY_DOWN' ----------------------------------------------------------
+                                                              RUNNING QUERIES
+PID    DATABASE                      state   Query
+...    tests                 idle in trans   SELECT 43
+...    tests                 idle in trans   UPDATE t SET s = 'blocking'
+...    tests                        active   UPDATE t SET s = 'waiting'
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+                             Process ... terminated
+------------------------------------------------------------- sending key ' ' --------------------------------------------------------------
+                                                              RUNNING QUERIES
+PID    DATABASE                      state   Query
+...    tests                 idle in trans   SELECT 43
+...    tests                 idle in trans   UPDATE t SET s = 'blocking'
+...    tests                        active   UPDATE t SET s = 'waiting'
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+C Cancel current query     K Terminate underlying ses Space Tag/untag current qu Other Back to activities   q Quit                          
+------------------------------------------------------------- sending key 'j' --------------------------------------------------------------
+                                                              RUNNING QUERIES
+PID    DATABASE                      state   Query
+...    tests                 idle in trans   UPDATE t SET s = 'blocking'
+...    tests                        active   UPDATE t SET s = 'waiting'
+...    tests                 idle in trans   SELECT 43
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+C Cancel current query     K Terminate underlying ses Space Tag/untag current qu Other Back to activities   q Quit                          
+------------------------------------------------------------- sending key ' ' --------------------------------------------------------------
+                                                              RUNNING QUERIES
+PID    DATABASE                      state   Query
+...    tests                 idle in trans   UPDATE t SET s = 'blocking'
+...    tests                        active   UPDATE t SET s = 'waiting'
+...    tests                 idle in trans   SELECT 43
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+C Cancel current query     K Terminate underlying ses Space Tag/untag current qu Other Back to activities   q Quit                          
+------------------------------------------------------------- sending key 'K' --------------------------------------------------------------
+<BLANKLINE>
+                                          Confirm terminate action on processes ..., ...? (y/n)
+<BLANKLINE>
+------------------------------------------------------------- sending key 'y' --------------------------------------------------------------
+                                                              RUNNING QUERIES
+PID    DATABASE                      state   Query
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+                          Processes ..., ... terminated                         
+------------------------------------------------------------- sending key 'q' --------------------------------------------------------------
+
+Waiting query should be unblocked:
+>>> postgres.execute("SELECT s from t").fetchall()
+[('waiting',)]

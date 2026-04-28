@@ -1,0 +1,578 @@
+>>> from ipaddress import ip_address, ip_interface
+>>> import attr
+>>> from blessed import Terminal
+>>> import os
+>>> from pgactivity.config import Flag
+>>> from pgactivity.types import *
+>>> from pgactivity.views import *
+
+>>> os.environ["LINES"] = "26"
+>>> term = Terminal(force_styling=None)
+>>> term.width, term.height
+(80, 26)
+
+Tests for help()
+----------------
+
+>>> help(term, "2.1", True)
+pg_activity 2.1 - https://github.com/dalibo/pg_activity
+Released under PostgreSQL License.
+<BLANKLINE>
+   Up/Down: scroll process list
+     Space: pause/unpause
+         c: sort by CPU% desc. (activities)
+         m: sort by MEM% desc. (activities)
+         r: sort by READ/s desc. (activities)
+         w: sort by WRITE/s desc. (activities)
+         t: sort by TIME+ desc. (activities)
+         +: increase refresh time (max:5s)
+         -: decrease refresh time (min:0.5s)
+         v: toggle query wrap
+         T: change duration mode
+         D: force refresh database size
+         R: force refresh
+         s: Display system information in header
+         i: Display general instance information in header
+         o: Display worker information in header
+         q: quit
+Mode
+      F1/1: running queries
+      F2/2: waiting queries
+      F3/3: blocking queries
+<BLANKLINE>
+Press any key to exit.
+
+>>> help(term, "5.0", False)
+pg_activity 5.0 - https://github.com/dalibo/pg_activity
+Released under PostgreSQL License.
+<BLANKLINE>
+   Up/Down: scroll process list
+     Space: pause/unpause
+         +: increase refresh time (max:5s)
+         -: decrease refresh time (min:0.5s)
+         v: toggle query wrap
+         T: change duration mode
+         D: force refresh database size
+         R: force refresh
+         i: Display general instance information in header
+         o: Display worker information in header
+         q: quit
+Mode
+      F1/1: running queries
+      F2/2: waiting queries
+      F3/3: blocking queries
+<BLANKLINE>
+Press any key to exit.
+
+>>> os.environ["LINES"] = "25"
+>>> term = Terminal(force_styling=None)
+>>> term.width, term.height
+(80, 25)
+
+Tests for header()
+------------------
+
+
+>>> ui = UI.make(refresh_time=10, duration_mode=DurationMode.backend)
+
+Remote host:
+
+>>> host = Host("server", "pgadm", "server.prod.tld", 5433, "app")
+>>> serverinfo = ServerInformation(
+...     active_connections=1,
+...     idle=1,
+...     idle_in_transaction=10,
+...     idle_in_transaction_aborted=0,
+...     total=6,
+...     max_connections=100,
+...     autovacuum_workers=3,
+...     autovacuum_max_workers=3,
+...     logical_replication_workers=1,
+...     parallel_workers=2,
+...     wal_senders=1,
+...     wal_receivers=0,
+...     max_logical_replication_workers=8,
+...     max_parallel_workers=8,
+...     max_worker_processes=8,
+...     max_wal_senders=10,
+...     max_replication_slots=10,
+...     replication_slots=10,
+...     xact_count=1000,
+...     total_size=20480000,
+...     size_evolution=1024,
+...     blks_read=1,
+...     blks_hit=9,
+...     cache_hit_ratio_last_snap=90.1222,
+...     xact_commit=12,
+...     xact_rollback=87,
+...     rollback_ratio_last_snap=12.345,
+...     epoch=10000,
+...     uptime=timedelta(days=125, seconds=25, minutes=21, hours=3, weeks=1),
+...     tps=15,
+...     insert=100,
+...     update=200,
+...     delete=300,
+...     insert_per_second=10,
+...     update_per_second=20,
+...     delete_per_second=30,
+...     temporary_file=TempFileInfo(
+...        temp_files=5,
+...        temp_bytes=12054865,
+...     ),
+...     max_dbname_length=27,
+...     waiting=3,)
+
+>>> header(term, ui, host=host, server_information=serverinfo,
+...        system_info=None, pg_version="PostgreSQL 9.6",
+...        width=200)
+PostgreSQL 9.6 - server - pgadm@server.prod.tld:5433/app - Ref.: 10s - Duration mode: backend
+ * Global: 132 days, 3 hours and 21 minutes uptime, 19.53M dbs size - 1.00K/s growth, 90.12% cache hit ratio, 12.35% rollback ratio
+   Sessions: 6/100 total, 1 active, 1 idle, 10 idle in txn, 0 idle in txn abrt, 3 waiting
+   Activity: 15 tps, 10 insert/s, 20 update/s, 30 delete/s, 5 temp files, 11.50M temp size
+ * Worker processes: 3/8 total, 1/8 logical workers, 2/8 parallel workers
+   Other processes & info: 3/3 autovacuum workers, 1/10 wal senders, 0 wal receivers, 10/10 repl. slots
+
+Local host, with privileged access:
+
+>>> host = Host("localhost", "tester", "host", 5432, "postgres")
+>>> sysinfo = SystemInfo(
+...     MemoryInfo(used=2, buff_cached=4, free=2, total=8),
+...     SwapInfo(used=1, free=1, total=2),
+...     LoadAverage(avg1=1, avg5=5, avg15=15),
+...     io_read=IOCounter(100,200),
+...     io_write=IOCounter(200,300),
+...     max_iops=300)
+>>> header(term, ui, host=host, server_information=serverinfo,
+...        system_info=sysinfo, pg_version="PostgreSQL 9.6",
+...        width=200)
+PostgreSQL 9.6 - localhost - tester@host:5432/postgres - Ref.: 10s - Duration mode: backend
+ * Global: 132 days, 3 hours and 21 minutes uptime, 19.53M dbs size - 1.00K/s growth, 90.12% cache hit ratio, 12.35% rollback ratio
+   Sessions: 6/100 total, 1 active, 1 idle, 10 idle in txn, 0 idle in txn abrt, 3 waiting
+   Activity: 15 tps, 10 insert/s, 20 update/s, 30 delete/s, 5 temp files, 11.50M temp size
+ * Worker processes: 3/8 total, 1/8 logical workers, 2/8 parallel workers
+   Other processes & info: 3/3 autovacuum workers, 1/10 wal senders, 0 wal receivers, 10/10 repl. slots
+ * Mem.: 8B total, 2B (25.00%) free, 2B (25.00%) used, 4B (50.00%) buff+cached
+   Swap: 2B total, 1B (50.00%) free, 1B (50.00%) used
+   IO: 300/s max iops, 200B/s - 100/s read, 300B/s - 200/s write
+   Load average: 1 5 15
+
+>>> ui.header.toggle_system()
+>>> header(term, ui, host=host, server_information=serverinfo,
+...        system_info=sysinfo, pg_version="PostgreSQL 9.6",
+...        width=200)
+PostgreSQL 9.6 - localhost - tester@host:5432/postgres - Ref.: 10s - Duration mode: backend
+ * Global: 132 days, 3 hours and 21 minutes uptime, 19.53M dbs size - 1.00K/s growth, 90.12% cache hit ratio, 12.35% rollback ratio
+   Sessions: 6/100 total, 1 active, 1 idle, 10 idle in txn, 0 idle in txn abrt, 3 waiting
+   Activity: 15 tps, 10 insert/s, 20 update/s, 30 delete/s, 5 temp files, 11.50M temp size
+ * Worker processes: 3/8 total, 1/8 logical workers, 2/8 parallel workers
+   Other processes & info: 3/3 autovacuum workers, 1/10 wal senders, 0 wal receivers, 10/10 repl. slots
+
+>>> ui = UI.make(refresh_time=10, duration_mode=DurationMode.query)
+>>> ui.header.toggle_system()
+>>> ui.header.toggle_workers()
+>>> header(term, ui, host=host, server_information=serverinfo,
+...        system_info=sysinfo, pg_version="PostgreSQL 9.6",
+...        width=200)
+PostgreSQL 9.6 - localhost - tester@host:5432/postgres - Ref.: 10s - Duration mode: query
+ * Global: 132 days, 3 hours and 21 minutes uptime, 19.53M dbs size - 1.00K/s growth, 90.12% cache hit ratio, 12.35% rollback ratio
+   Sessions: 6/100 total, 1 active, 1 idle, 10 idle in txn, 0 idle in txn abrt, 3 waiting
+   Activity: 15 tps, 10 insert/s, 20 update/s, 30 delete/s, 5 temp files, 11.50M temp size
+
+>>> ui = UI.make(refresh_time=2, min_duration=1.2, duration_mode=DurationMode.transaction)
+>>> ui.header.toggle_system()
+>>> ui.header.toggle_workers()
+>>> ui.header.toggle_instance()
+>>> header(term, ui, host=host, server_information=serverinfo,
+...        system_info=sysinfo, pg_version="PostgreSQL 9.6",
+...        width=200)
+PostgreSQL 9.6 - localhost - tester@host:5432/postgres - Ref.: 2s - Duration mode: transaction - Min. duration: 1.2s
+
+>>> sysinfo = SystemInfo(
+...     MemoryInfo(used=0, buff_cached=0, free=0, total=0),
+...     SwapInfo(used=0, free=0, total=0),
+...     LoadAverage(avg1=0, avg5=0, avg15=0),
+...     io_read=IOCounter(0,0),
+...     io_write=IOCounter(0,0),
+...     max_iops=0)
+>>> ui.header.toggle_system()
+>>> header(term, ui, host=host, server_information=serverinfo,
+...        system_info=sysinfo, pg_version="PostgreSQL 9.6",
+...        width=200)
+PostgreSQL 9.6 - localhost - tester@host:5432/postgres - Ref.: 2s - Duration mode: transaction - Min. duration: 1.2s
+ * Mem.: 0B total, 0B (-) free, 0B (-) used, 0B (-) buff+cached
+   Swap: 0B total, 0B (-) free, 0B (-) used
+   IO: 0/s max iops, 0B/s - 0/s read, 0B/s - 0/s write
+   Load average: 0 0 0
+
+Tests for processes_rows()
+--------------------------
+
+>>> processes1 = [
+...     LocalRunningProcess(
+...         pid="6239",
+...         xmin=1,
+...         application_name="pgbench",
+...         database="pgbench",
+...         user="postgres",
+...         client=None,
+...         cpu=0.1,
+...         mem=0.993_254_939_413_836,
+...         read=7,
+...         write=12.3,
+...         state="idle in transaction",
+...         query="UPDATE pgbench_accounts SET abalance = abalance + 141 WHERE aid = 1932841;",
+...         encoding="UTF-8",
+...         duration=0.0,
+...         wait=False,
+...         io_wait=False,
+...         query_leader_pid=6239,
+...         is_parallel_worker=False,
+...     ),
+...     LocalRunningProcess(
+...         pid="6228",
+...         xmin=2,
+...         application_name="pgbench",
+...         database="pgbench",
+...         user="postgres",
+...         client=None,
+...         cpu=0.2,
+...         mem=1.024_758_418_061_11,
+...         read=0.2,
+...         write=1_128_201,
+...         state="active",
+...         query="UPDATE pgbench_accounts SET abalance = abalance + 141 WHERE aid = 1932841;",
+...         encoding="UTF-8",
+...         duration=0.000413,
+...         wait=None,
+...         io_wait=True,
+...         query_leader_pid=6239,
+...         is_parallel_worker=True,
+...     ),
+...     LocalRunningProcess(
+...         pid="1234",
+...         xmin=3,
+...         application_name="accounting",
+...         database="business",
+...         user="bob",
+...         client=None,
+...         cpu=2.4,
+...         mem=1.031_191_760_016_45,
+...         read=9_876_543.21,
+...         write=1_234,
+...         state="active",
+...         query="SELECT product_id, p.name FROM products p LEFT JOIN sales s USING (product_id) WHERE s.date > CURRENT_DATE - INTERVAL '4 weeks' GROUP BY product_id, p.name, p.price, p.cost HAVING sum(p.price * s.units) > 5000;",
+...         encoding="UTF-8",
+...         duration=1234,
+...         wait="BackendRandomLock",
+...         io_wait=False,
+...         query_leader_pid=1234,
+...         is_parallel_worker=False,
+...     ),
+... ]
+
+>>> ui = UI.make(flag=Flag.PID|Flag.CPU|Flag.MEM|Flag.DATABASE)
+>>> processes_rows(term, ui, SelectableProcesses(processes1), 100)
+6239   pgbench          0.1    1.0      idle in trans UPDATE pgbench_accounts S
+6228   pgbench          0.2    1.0             active \_ UPDATE pgbench_account
+1234   business         2.4    1.0             active SELECT product_id, p.name
+
+>>> ui.evolve(wrap_query=True)
+>>> processes_rows(term, ui, SelectableProcesses(processes1), 100)
+6239   pgbench          0.1    1.0      idle in trans UPDATE pgbench_accounts
+                                                       SET abalance = abalance +
+                                                       141 WHERE aid = 1932841;
+6228   pgbench          0.2    1.0             active \_ UPDATE
+                                                       pgbench_accounts SET
+                                                       abalance = abalance + 141
+                                                       WHERE aid = 1932841;
+1234   business         2.4    1.0             active SELECT product_id, p.name
+                                                       FROM products p LEFT JOIN
+                                                       sales s USING
+                                                       (product_id) WHERE s.date
+                                                       > CURRENT_DATE - INTERVAL
+                                                       '4 weeks' GROUP BY
+                                                       product_id, p.name,
+                                                       p.price, p.cost HAVING
+                                                       sum(p.price * s.units) >
+                                                       5000;
+
+>>> allflags = Flag.all()
+>>> ui = UI.make(flag=allflags)
+>>> term.width
+80
+
+Terminal is too narrow given selected flags, we switch to wrap_noindent mode
+(TODO: this is buggy, the first line should be wrapped as well if too long)
+>>> processes_rows(term, ui, SelectableProcesses(processes1), 100, width=250)
+6239   1        pgbench                   pgbench         postgres            local 0.1    1.0  7B       12B       0.000000                N N        idle in trans UPDATE pgbench_accounts SET abalance = abalance + 141 WHERE aid = 1932841;
+6228   2        pgbench                   pgbench         postgres            local 0.2    1.0  0B       1.08M     0.000413                  Y               active \_ UPDATE pgbench_accounts SET abalance = abalance + 141 WHERE aid = 1932841;
+1234   3        business               accounting              bob            local 2.4    1.0  9.42M    1.21K     20:34.00 BackendRandomLoc N               active SELECT product_id, p.name FROM products p LEFT JOIN sales s USING (product_id) WHERE
+
+>>> ui = UI.make(flag=Flag.PID|Flag.DATABASE, wrap_query=False)
+>>> processes_rows(term, ui, SelectableProcesses(processes1), 100)
+6239   pgbench              idle in trans UPDATE pgbench_accounts SET abalance
+6228   pgbench                     active \_ UPDATE pgbench_accounts SET abalan
+1234   business                    active SELECT product_id, p.name FROM produc
+
+>>> ui.evolve(wrap_query=True)
+>>> processes_rows(term, ui, SelectableProcesses(processes1), 100)
+6239   pgbench              idle in trans UPDATE pgbench_accounts SET abalance
+                                           = abalance + 141 WHERE aid = 1932841;
+6228   pgbench                     active \_ UPDATE pgbench_accounts SET
+                                           abalance = abalance + 141 WHERE aid =
+					   1932841;
+1234   business                    active SELECT product_id, p.name FROM
+                                           products p LEFT JOIN sales s USING
+                                           (product_id) WHERE s.date >
+                                           CURRENT_DATE - INTERVAL '4 weeks'
+                                           GROUP BY product_id, p.name, p.price,
+                                           p.cost HAVING sum(p.price * s.units)
+                                           > 5000;
+
+
+>>> processes2 = [
+...     BlockingProcess(
+...         pid="6239",
+...         application_name="pgbench",
+...         database="pgbench",
+...         user="postgres",
+...         client=ip_address("1.2.3.4"),
+...         mode="ExclusiveLock",
+...         type="transactionid",
+...         relation="None",
+...         duration=666,
+...         wait="Client Read",
+...         state="active",
+...         query="END;",
+...         encoding="UTF-8",
+...     ),
+...     BlockingProcess(
+...         pid="6228",
+...         application_name="pgbench",
+...         database="pgbench",
+...         user="postgres",
+...         client=ip_interface("2001:4f8:3:ba:2e0:81ff:fe22:d1f1/128"),
+...         mode="RowExclusiveLock",
+...         type="tuple",
+...         relation="ahah",
+...         duration=0.000413,
+...         wait="Client Read",
+...         state="idle in transaction",
+...         query="UPDATE pgbench_branches SET bbalance = bbalance + 1788 WHERE bid = 68;",
+...         encoding="UTF-8",
+...     ),
+... ]
+>>> ui.evolve(query_mode=QueryMode.waiting)
+>>> processes_rows(term, ui, SelectableProcesses(processes2), 100)
+6239   pgbench                     active END;
+6228   pgbench              idle in trans UPDATE pgbench_branches SET bbalance
+                                           = bbalance + 1788 WHERE bid = 68;
+>>> ui = UI.make(query_mode=QueryMode.blocking, flag=allflags)
+>>> processes_rows(term, ui, SelectableProcesses(processes2), 100, width=250)
+6239   pgbench                   pgbench         postgres          1.2.3.4      None    transactionid    ExclusiveLock  11:06.00      Client Read            active END;
+6228   pgbench                   pgbench         postgres 2001:4f8:3:ba:2e      ahah            tuple RowExclusiveLock  0.000413      Client Read     idle in trans UPDATE pgbench_branches SET bbalance = bbalance + 1788 WHERE bid = 68;
+
+>>> processes1b = [
+...     RunningProcess(
+...         pid=6239,
+...         xmin=1,
+...         application_name="pgbench",
+...         database="pgbench",
+...         user="postgres",
+...         client=ip_interface("2001:db8::1/96"),
+...         state="idle in transaction",
+...         query="UPDATE pgbench_accounts SET abalance = abalance + 141 WHERE aid = 1932841;",
+...         encoding="UTF-8",
+...         duration=0.0,
+...         wait=False,
+...         query_leader_pid=6239,
+...         is_parallel_worker=False,
+...     ),
+...     RunningProcess(
+...         pid=6228,
+...         xmin=2,
+...         application_name="none",
+...         database="pgbench",
+...         user="postgres",
+...         client=ip_interface("10.1.0.0/16"),
+...         state="active",
+...         query="UPDATE pgbench_accounts SET abalance = abalance + 141 WHERE aid = 1932841;",
+...         encoding="UTF-8",
+...         duration=0.000413,
+...         wait=True,
+...         query_leader_pid=6239,
+...         is_parallel_worker=True,
+...     ),
+...     RunningProcess(
+...         pid=1234,
+...         xmin=3,
+...         application_name="accounting",
+...         database="business",
+...         user="bob",
+...         client=ip_address("192.168.0.47"),
+...         state="active",
+...         query="SELECT product_id, p.name FROM products p LEFT JOIN sales s USING (product_id) WHERE s.date > CURRENT_DATE - INTERVAL '4 weeks' GROUP BY product_id, p.name, p.price, p.cost HAVING sum(p.price * s.units) > 5000;",
+...         encoding="UTF-8",
+...         duration=1234,
+...         wait="clog",
+...         query_leader_pid=1234,
+...         is_parallel_worker=False,
+...     ),
+... ]
+>>> all_but_local_flags = Flag.PID|Flag.DATABASE|Flag.APPNAME|Flag.USER|Flag.CLIENT|Flag.TIME|Flag.WAIT
+>>> ui = UI.make(query_mode=QueryMode.activities,flag=all_but_local_flags)
+>>> processes_rows(term, ui, SelectableProcesses(processes1b), 100, width=200)
+6239   pgbench                   pgbench         postgres   2001:db8::1/96  0.000000                N     idle in trans UPDATE pgbench_accounts SET abalance = abalance + 141 WHERE aid = 1932841;
+6228   pgbench                      none         postgres      10.1.0.0/16  0.000413                Y            active \_ UPDATE pgbench_accounts SET abalance = abalance + 141 WHERE aid = 1932841;
+1234   business               accounting              bob     192.168.0.47  20:34.00             clog            active SELECT product_id, p.name FROM products p LEFT JOIN sales s USING (product_id)
+
+Tests for footer_*()
+--------------------
+
+>>> footer_help(term, width=85)
+F1/1 Running  F2/2 Waiting  F3/3 Blocking Space Pause/u q Quit        h Help         
+>>> footer_interative_help(term)
+C Cancel curre K Terminate un Space Tag/unta Other Back to  q Quit              
+>>> footer_message(term, "process 123 cancelled")
+                             process 123 cancelled                              
+
+
+
+Tests for screen()
+------------------
+
+>>> processes3 = [processes1[0], processes1[2]]
+
+>>> host = Host("localhost", "tester", "host", 5432, "postgres")
+>>> serverinfo = ServerInformation(
+...     active_connections=1,
+...     idle=1,
+...     idle_in_transaction=10,
+...     idle_in_transaction_aborted=0,
+...     total=6,
+...     max_connections=100,
+...     autovacuum_workers=3,
+...     autovacuum_max_workers=3,
+...     logical_replication_workers=1,
+...     parallel_workers=2,
+...     wal_senders=1,
+...     wal_receivers=0,
+...     max_logical_replication_workers=8,
+...     max_parallel_workers=8,
+...     max_worker_processes=8,
+...     max_wal_senders=10,
+...     max_replication_slots=10,
+...     replication_slots=10,
+...     xact_count=1000,
+...     total_size=20480000,
+...     size_evolution=1024,
+...     blks_read=1,
+...     blks_hit=9,
+...     cache_hit_ratio_last_snap=90.1222,
+...     xact_commit=5,
+...     xact_rollback=91,
+...     rollback_ratio_last_snap=0.09,
+...     epoch=10000,
+...     uptime=timedelta(days=125, seconds=25, minutes=21, hours=3, weeks=1),
+...     tps=15,
+...     insert=100,
+...     update=200,
+...     delete=300,
+...     insert_per_second=10,
+...     update_per_second=20,
+...     delete_per_second=30,
+...     temporary_file=TempFileInfo(
+...         temp_files=5,
+...         temp_bytes=12054865,
+...     ),
+...     max_dbname_length=27,
+...     waiting=3,)
+>>> ui = UI.make(
+...     duration_mode=DurationMode.backend,
+...     refresh_time=10,
+...     min_duration=1,
+...     query_mode=QueryMode.activities,
+...     flag=Flag.PID|Flag.CPU|Flag.MEM|Flag.DATABASE,
+...     sort_key=SortKey.cpu,
+...     wrap_query=False,
+...     in_pause=False,
+... )
+>>> sysinfo = SystemInfo(
+...     MemoryInfo(used=2, buff_cached=4, free=2, total=8),
+...     SwapInfo(used=1, free=1, total=2),
+...     LoadAverage(avg1=1, avg5=5, avg15=15),
+...     io_read=IOCounter(100,200),
+...     io_write=IOCounter(200,300),
+...     max_iops=300)
+
+>>> screen(
+...     term,
+...     ui,
+...     host=host,
+...     server_information=serverinfo,
+...     pg_version="PostgreSQL 13",
+...     activity_stats=(SelectableProcesses(processes3), sysinfo),
+...     message=None,
+...     width=150,
+... )
+PostgreSQL 13 - localhost - tester@host:5432/postgres - Ref.: 10s - Duration mode: backend - Min. duration: 1s
+ * Global: 132 days, 3 hours and 21 minutes uptime, 19.53M dbs size - 1.00K/s growth, 90.12% cache hit ratio, 0.09% rollback ratio
+   Sessions: 6/100 total, 1 active, 1 idle, 10 idle in txn, 0 idle in txn abrt, 3 waiting
+   Activity: 15 tps, 10 insert/s, 20 update/s, 30 delete/s, 5 temp files, 11.50M temp size
+ * Worker processes: 3/8 total, 1/8 logical workers, 2/8 parallel workers
+   Other processes & info: 3/3 autovacuum workers, 1/10 wal senders, 0 wal receivers, 10/10 repl. slots
+ * Mem.: 8B total, 2B (25.00%) free, 2B (25.00%) used, 4B (50.00%) buff+cached
+   Swap: 2B total, 1B (50.00%) free, 1B (50.00%) used
+   IO: 300/s max iops, 200B/s - 100/s read, 300B/s - 200/s write
+   Load average: 1 5 15
+                                RUNNING QUERIES
+PID    DATABASE         CPU%   MEM%             state Query
+1234   business         2.4    1.0             active SELECT product_id, p.name FROM products p LEFT JOIN sales s USING (product_id) WHERE s.date > C
+6239   pgbench          0.1    1.0      idle in trans UPDATE pgbench_accounts SET abalance = abalance + 141 WHERE aid = 1932841;
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+F1/1 Running queries    F2/2 Waiting queries    F3/3 Blocking queries   Space Pause/unpause     q Quit                  h Help                        
+
+(using terminal width)
+>>> screen(
+...     term,
+...     ui,
+...     host=host,
+...     server_information=serverinfo,
+...     pg_version="PostgreSQL 13",
+...     activity_stats=(SelectableProcesses(processes3[:-1]), sysinfo),
+...     message=f"Process {processes3[-1].pid} killed",
+... )
+PostgreSQL 13 - localhost - tester@host:5432/postgres - Ref.: 10s - Duration
+ * Global: 132 days, 3 hours and 21 minutes uptime, 19.53M dbs size - 1.00K/s
+   Sessions: 6/100 total, 1 active, 1 idle, 10 idle in txn, 0 idle in txn abrt,
+   Activity: 15 tps, 10 insert/s, 20 update/s, 30 delete/s, 5 temp files, 11.50M
+ * Worker processes: 3/8 total, 1/8 logical workers, 2/8 parallel workers
+   Other processes & info: 3/3 autovacuum workers, 1/10 wal senders, 0 wal
+ * Mem.: 8B total, 2B (25.00%) free, 2B (25.00%) used, 4B (50.00%) buff+cached
+   Swap: 2B total, 1B (50.00%) free, 1B (50.00%) used
+   IO: 300/s max iops, 200B/s - 100/s read, 300B/s - 200/s write
+   Load average: 1 5 15
+                                RUNNING QUERIES
+PID    DATABASE         CPU%   MEM%             state Query
+1234   business         2.4    1.0             active SELECT product_id, p.name
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+<BLANKLINE>
+                              Process 6239 killed                               
