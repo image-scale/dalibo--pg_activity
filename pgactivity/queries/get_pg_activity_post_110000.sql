@@ -17,7 +17,7 @@ JOIN pg_database AS d ON d.datname = a.datname
 WHERE
       a.pid != pg_backend_pid()
       AND a.datname IS NOT NULL
-      AND a.query NOT LIKE '<IDLE%'
+      AND a.query NOT LIKE '<IDLE%%'
       AND a.backend_type = 'client backend'
       AND ({dbname_filter} IS NULL OR a.datname ~ {dbname_filter})
       AND EXTRACT(EPOCH FROM (NOW() - a.{duration_column})) >= {min_duration};

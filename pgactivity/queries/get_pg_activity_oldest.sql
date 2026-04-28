@@ -21,6 +21,6 @@ JOIN pg_database AS d ON d.datname = a.datname
 WHERE
       a.procpid != pg_backend_pid()
       AND a.datname IS NOT NULL
-      AND a.current_query NOT LIKE '<IDLE%'
+      AND a.current_query NOT LIKE '<IDLE%%'
       AND ({dbname_filter} IS NULL OR a.datname ~ {dbname_filter})
       AND EXTRACT(EPOCH FROM (NOW() - a.{duration_column})) >= {min_duration};

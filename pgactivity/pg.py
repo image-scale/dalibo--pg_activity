@@ -77,11 +77,14 @@ def fetchone(
 
     If mkrow is provided, it's called with the row data as keyword arguments.
     """
-    with conn.cursor(binary=text_as_bytes, row_factory=psycopg.rows.dict_row) as cur:
+    with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
         cur.execute(query, params)
         row = cur.fetchone()
         if row is None:
             raise RuntimeError("No rows returned")
+        if text_as_bytes and mkrow is not None:
+            # Convert text fields to bytes if needed
+            row = {k: v.encode() if isinstance(v, str) else v for k, v in row.items()}
         if mkrow is not None:
             return mkrow(**row)
         return row
@@ -99,9 +102,15 @@ def fetchall(
 
     If mkrow is provided, it's called with each row's data as keyword arguments.
     """
-    with conn.cursor(binary=text_as_bytes, row_factory=psycopg.rows.dict_row) as cur:
+    with conn.cursor(row_factory=psycopg.rows.dict_row) as cur:
         cur.execute(query, params)
         rows = cur.fetchall()
+        if text_as_bytes and mkrow is not None:
+            # Convert text fields to bytes if needed
+            rows = [
+                {k: v.encode() if isinstance(v, str) else v for k, v in row.items()}
+                for row in rows
+            ]
         if mkrow is not None:
             return [mkrow(**row) for row in rows]
         return list(rows)
@@ -135,3 +144,16 @@ def needs_password(err: OperationalError) -> bool:
     """Check if an OperationalError indicates that a password is required."""
     err_str = str(err).lower()
     return "password" in err_str or "authentication" in err_str
+
+
+def decode(value: bytes, encoding: bytes | str, errors: str = "strict") -> str:
+    """Decode bytes to string using the specified encoding.
+
+    >>> decode(b'hello', b'utf-8')
+    'hello'
+    >>> decode(b'hello', 'utf-8')
+    'hello'
+    """
+    if isinstance(encoding, bytes):
+        encoding = encoding.decode("ascii")
+    return value.decode(encoding, errors=errors)
