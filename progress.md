@@ -43,3 +43,10 @@
 **Commit**: Add keyboard handling module with key bindings and action handlers.
 **Acceptance**: 8/8 criteria met
 **Verification**: tests FAIL on previous state (ImportError), PASS on current state (254 tests)
+
+## Round 7
+**Task**: Task 7 — Terminal rendering with blessed
+**Files created**: pgmonitor/views.py, tests/test_views.py
+**Commit**: Add terminal rendering module with columns, headers, process display, and footer.
+**Acceptance**: 10/10 criteria met
+**Verification**: tests FAIL on previous state (ImportError), PASS on current state (305 tests)

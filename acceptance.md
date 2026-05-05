@@ -84,3 +84,17 @@
 - [x] handle_duration_mode cycles through query/transaction/backend modes with T key
 - [x] handle_sort_key changes sort key with c/m/r/w/t keys in activities mode
 - [x] handle_query_mode switches between activities/waiting/blocking with 1/2/3 or F1/F2/F3
+
+## Task 7: Terminal rendering with blessed
+
+### Acceptance Criteria
+- [x] Column class defines table columns with name, width, alignment, transform functions
+- [x] Column.render formats cell values with proper width and justification
+- [x] render_header displays server info (version, host, refresh time, duration mode)
+- [x] render_header shows memory/swap/load stats when in local mode
+- [x] render_query_mode displays current mode title (RUNNING QUERIES, WAITING, BLOCKING)
+- [x] render_columns_header shows column headers with sort highlighting
+- [x] render_processes displays process rows with proper formatting
+- [x] render_footer shows help keys (F1/1, F2/2, F3/3, Space, q, h)
+- [x] Colors module provides color functions for state, duration, wait status
+- [x] boxed widget draws bordered message boxes for confirmations
