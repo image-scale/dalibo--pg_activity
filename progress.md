@@ -22,3 +22,10 @@
 **Commit**: Add configuration system with INI file parsing and built-in profiles.
 **Acceptance**: 11/11 criteria met
 **Verification**: tests FAIL on previous state (ImportError), PASS on current state (142 tests)
+
+## Round 4
+**Task**: Task 4 — Database connection and SQL queries
+**Files created**: pgmonitor/data.py, tests/test_data.py
+**Commit**: Add database connection and query module for PostgreSQL monitoring.
+**Acceptance**: 11/11 criteria met
+**Verification**: tests FAIL on previous state (ImportError), PASS on current state (177 tests)

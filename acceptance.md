@@ -51,14 +51,24 @@
 ## Task 4: Database connection and SQL queries
 
 ### Acceptance Criteria
-- [ ] DatabaseManager wraps psycopg connection with autocommit and dict row factory
-- [ ] connect() establishes connection with host, port, database, user parameters
-- [ ] pg_version property returns PostgreSQL version string
-- [ ] pg_is_local() returns True when connected to localhost
-- [ ] get_activities() returns list of RunningProcess from pg_stat_activity
-- [ ] get_waiting() returns list of WaitingProcess for queries waiting on locks
-- [ ] get_blocking() returns list of BlockingProcess for queries holding locks
-- [ ] cancel_backend() sends pg_cancel_backend for a PID
-- [ ] terminate_backend() sends pg_terminate_backend for a PID
-- [ ] ServerInfo dataclass holds connection stats, TPS, cache hit ratio, temp files
-- [ ] get_server_info() aggregates server statistics from various pg_stat views
+- [x] DatabaseManager wraps psycopg connection with autocommit and dict row factory
+- [x] connect() establishes connection with host, port, database, user parameters
+- [x] pg_version property returns PostgreSQL version string
+- [x] pg_is_local() returns True when connected to localhost
+- [x] get_activities() returns list of RunningProcess from pg_stat_activity
+- [x] get_waiting() returns list of WaitingProcess for queries waiting on locks
+- [x] get_blocking() returns list of BlockingProcess for queries holding locks
+- [x] cancel_backend() sends pg_cancel_backend for a PID
+- [x] terminate_backend() sends pg_terminate_backend for a PID
+- [x] ServerInfo dataclass holds connection stats, TPS, cache hit ratio, temp files
+- [x] get_server_info() aggregates server statistics from various pg_stat views
+
+## Task 5: System monitoring with psutil
+
+### Acceptance Criteria
+- [ ] mem_swap_load() returns MemoryInfo, SwapInfo, LoadAverage from psutil
+- [ ] sys_get_proc() gets CPU/memory/IO stats for a process by PID
+- [ ] ps_complete() enriches RunningProcess list with system metrics
+- [ ] ps_complete() computes read/write deltas from previous IO counters
+- [ ] ps_complete() detects io_wait state based on CPU/wait time
+- [ ] Handle processes that disappear between queries gracefully
