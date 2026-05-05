@@ -1,0 +1,29 @@
+[build-system]
+requires = ["setuptools >= 61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pg-monitor"
+version = "1.0.0"
+description = "Command line tool for PostgreSQL server activity monitoring."
+readme = "README.md"
+requires-python = ">=3.9"
+dependencies = [
+    "blessed >= 1.15.0",
+    "humanize >= 0.5.1",
+    "psutil >= 2.0.0",
+    "psycopg >= 3.1",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+]
+
+[project.scripts]
+pg_monitor = "pgmonitor.cli:main"
+
+[tool.pytest.ini_options]
+addopts = "--doctest-modules"
+testpaths = ["tests", "pgmonitor"]
+filterwarnings = ["error"]

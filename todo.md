@@ -4,7 +4,7 @@
 Implement the project in a layered approach: start with core data models and utility functions, then database connection and queries, followed by system monitoring, and finally the terminal UI components. Each task will deliver user-facing functionality with tests.
 
 ## Tasks
-- [ ] Task 1: Core data models for processes, system info, and query modes - types for running/waiting/blocking processes with attributes like pid, database, query, duration; system info types for memory, swap, load average; enumerated query modes and sort keys
+- [>] Task 1: Core data models for processes, system info, and query modes - types for running/waiting/blocking processes with attributes like pid, database, query, duration; system info types for memory, swap, load average; enumerated query modes and sort keys
 - [ ] Task 2: Utility functions for formatting data - human-readable duration formatting, byte sizes, query text cleaning, boolean Y/N display, CSV export
 - [ ] Task 3: Configuration system with profiles - INI file parsing, column flags for showing/hiding fields, header display options, built-in profiles (narrow/wide/minimal), profile lookup from user config directories
 - [ ] Task 4: Database connection and SQL queries - PostgreSQL connection wrapper supporting psycopg, execute queries for running/waiting/blocking processes, server statistics, cancel/terminate backends
