@@ -66,9 +66,21 @@
 ## Task 5: System monitoring with psutil
 
 ### Acceptance Criteria
-- [ ] mem_swap_load() returns MemoryInfo, SwapInfo, LoadAverage from psutil
-- [ ] sys_get_proc() gets CPU/memory/IO stats for a process by PID
-- [ ] ps_complete() enriches RunningProcess list with system metrics
-- [ ] ps_complete() computes read/write deltas from previous IO counters
-- [ ] ps_complete() detects io_wait state based on CPU/wait time
-- [ ] Handle processes that disappear between queries gracefully
+- [x] mem_swap_load() returns MemoryInfo, SwapInfo, LoadAverage from psutil
+- [x] sys_get_proc() gets CPU/memory/IO stats for a process by PID
+- [x] ps_complete() enriches RunningProcess list with system metrics
+- [x] ps_complete() computes read/write deltas from previous IO counters
+- [x] ps_complete() detects io_wait state based on CPU/wait time
+- [x] Handle processes that disappear between queries gracefully
+
+## Task 6: Keyboard handling and action handlers
+
+### Acceptance Criteria
+- [x] Key class holds value, description, and optional key name
+- [x] BINDINGS list defines available key bindings with descriptions
+- [x] is_process_next/prev/first/last detect navigation keys (arrows, j/k, Home/End)
+- [x] KEYS_BY_QUERYMODE maps F1/F2/F3 to query modes
+- [x] handle_refresh_time adjusts refresh interval with +/- keys (min 0.5s, max 5s)
+- [x] handle_duration_mode cycles through query/transaction/backend modes with T key
+- [x] handle_sort_key changes sort key with c/m/r/w/t keys in activities mode
+- [x] handle_query_mode switches between activities/waiting/blocking with 1/2/3 or F1/F2/F3

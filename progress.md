@@ -29,3 +29,17 @@
 **Commit**: Add database connection and query module for PostgreSQL monitoring.
 **Acceptance**: 11/11 criteria met
 **Verification**: tests FAIL on previous state (ImportError), PASS on current state (177 tests)
+
+## Round 5
+**Task**: Task 5 — System monitoring with psutil
+**Files created**: pgmonitor/activities.py, tests/test_activities.py
+**Commit**: Add system monitoring module using psutil for local process metrics.
+**Acceptance**: 6/6 criteria met
+**Verification**: tests FAIL on previous state (ImportError), PASS on current state (203 tests)
+
+## Round 6
+**Task**: Task 6 — Keyboard handling and action handlers
+**Files created**: pgmonitor/keys.py, tests/test_keys.py
+**Commit**: Add keyboard handling module with key bindings and action handlers.
+**Acceptance**: 8/8 criteria met
+**Verification**: tests FAIL on previous state (ImportError), PASS on current state (254 tests)
