@@ -5,8 +5,8 @@ Implement the project in a layered approach: start with core data models and uti
 
 ## Tasks
 - [x] Task 1: Core data models for processes, system info, and query modes - types for running/waiting/blocking processes with attributes like pid, database, query, duration; system info types for memory, swap, load average; enumerated query modes and sort keys
-- [>] Task 2: Utility functions for formatting data - human-readable duration formatting, byte sizes, query text cleaning, boolean Y/N display, CSV export
-- [ ] Task 3: Configuration system with profiles - INI file parsing, column flags for showing/hiding fields, header display options, built-in profiles (narrow/wide/minimal), profile lookup from user config directories
+- [x] Task 2: Utility functions for formatting data - human-readable duration formatting, byte sizes, query text cleaning, boolean Y/N display, CSV export
+- [>] Task 3: Configuration system with profiles - INI file parsing, column flags for showing/hiding fields, header display options, built-in profiles (narrow/wide/minimal), profile lookup from user config directories
 - [ ] Task 4: Database connection and SQL queries - PostgreSQL connection wrapper supporting psycopg, execute queries for running/waiting/blocking processes, server statistics, cancel/terminate backends
 - [ ] Task 5: System monitoring with psutil - collect memory, swap, load average, per-process CPU/memory/IO metrics, integrate system data with process information
 - [ ] Task 6: Keyboard handling and action handlers - key bindings for navigation, sorting, mode switching, refresh rate control, process selection, map keystrokes to UI state changes

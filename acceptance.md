@@ -22,13 +22,28 @@
 ## Task 2: Utility functions for formatting data
 
 ### Acceptance Criteria
-- [ ] format_duration returns human-readable duration: sub-second shows microseconds (0.123456), 1-60000s shows mm:ss.ff, over 60000s shows hours
-- [ ] format_duration returns color: green for <1s, yellow for 1-3s, red for >3s
-- [ ] naturalsize formats bytes with binary units using humanize library
-- [ ] yn converts boolean to "Y" or "N" string
-- [ ] clean_str removes newlines, collapses whitespace, trims leading/trailing spaces
-- [ ] ellipsis shortens text with "..." in middle if longer than width
-- [ ] short_state abbreviates "idle in transaction" to "idle in trans"
-- [ ] wait_status formats wait value: empty for None, Y/N for bool, string as-is
-- [ ] MessagePile stores messages and returns them N times before clearing
-- [ ] csv_write exports processes to CSV with headers and proper quoting
+- [x] format_duration returns human-readable duration: sub-second shows microseconds (0.123456), 1-60000s shows mm:ss.ff, over 60000s shows hours
+- [x] format_duration returns color: green for <1s, yellow for 1-3s, red for >3s
+- [x] naturalsize formats bytes with binary units using humanize library
+- [x] yn converts boolean to "Y" or "N" string
+- [x] clean_str removes newlines, collapses whitespace, trims leading/trailing spaces
+- [x] ellipsis shortens text with "..." in middle if longer than width
+- [x] short_state abbreviates "idle in transaction" to "idle in trans"
+- [x] wait_status formats wait value: empty for None, Y/N for bool, string as-is
+- [x] MessagePile stores messages and returns them N times before clearing
+- [x] csv_write exports processes to CSV with headers and proper quoting
+
+## Task 3: Configuration system with profiles
+
+### Acceptance Criteria
+- [ ] ColumnFlag enum has values for database, appname, client, user, cpu, mem, read, write, time, wait, etc.
+- [ ] ColumnFlag.all() returns a flag with all columns enabled
+- [ ] ColumnFlag.names() returns list of flag names in lowercase
+- [ ] HeaderOptions controls visibility of instance, system, workers sections
+- [ ] ColumnOptions holds hidden, width, color settings for a column
+- [ ] Configuration parses INI files with [header] section and column sections
+- [ ] Configuration.parse raises ConfigError for invalid sections or options
+- [ ] Configuration.lookup searches user config dir and /etc for config files
+- [ ] Configuration.lookup loads built-in profiles (narrow, wide, minimal) by name
+- [ ] Built-in minimal profile hides header sections and most columns
+- [ ] Built-in narrow profile hides resource-intensive columns
