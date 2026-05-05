@@ -36,14 +36,29 @@
 ## Task 3: Configuration system with profiles
 
 ### Acceptance Criteria
-- [ ] ColumnFlag enum has values for database, appname, client, user, cpu, mem, read, write, time, wait, etc.
-- [ ] ColumnFlag.all() returns a flag with all columns enabled
-- [ ] ColumnFlag.names() returns list of flag names in lowercase
-- [ ] HeaderOptions controls visibility of instance, system, workers sections
-- [ ] ColumnOptions holds hidden, width, color settings for a column
-- [ ] Configuration parses INI files with [header] section and column sections
-- [ ] Configuration.parse raises ConfigError for invalid sections or options
-- [ ] Configuration.lookup searches user config dir and /etc for config files
-- [ ] Configuration.lookup loads built-in profiles (narrow, wide, minimal) by name
-- [ ] Built-in minimal profile hides header sections and most columns
-- [ ] Built-in narrow profile hides resource-intensive columns
+- [x] ColumnFlag enum has values for database, appname, client, user, cpu, mem, read, write, time, wait, etc.
+- [x] ColumnFlag.all() returns a flag with all columns enabled
+- [x] ColumnFlag.names() returns list of flag names in lowercase
+- [x] HeaderOptions controls visibility of instance, system, workers sections
+- [x] ColumnOptions holds hidden, width, color settings for a column
+- [x] Configuration parses INI files with [header] section and column sections
+- [x] Configuration.parse raises ConfigError for invalid sections or options
+- [x] Configuration.lookup searches user config dir and /etc for config files
+- [x] Configuration.lookup loads built-in profiles (narrow, wide, minimal) by name
+- [x] Built-in minimal profile hides header sections and most columns
+- [x] Built-in narrow profile hides resource-intensive columns
+
+## Task 4: Database connection and SQL queries
+
+### Acceptance Criteria
+- [ ] DatabaseManager wraps psycopg connection with autocommit and dict row factory
+- [ ] connect() establishes connection with host, port, database, user parameters
+- [ ] pg_version property returns PostgreSQL version string
+- [ ] pg_is_local() returns True when connected to localhost
+- [ ] get_activities() returns list of RunningProcess from pg_stat_activity
+- [ ] get_waiting() returns list of WaitingProcess for queries waiting on locks
+- [ ] get_blocking() returns list of BlockingProcess for queries holding locks
+- [ ] cancel_backend() sends pg_cancel_backend for a PID
+- [ ] terminate_backend() sends pg_terminate_backend for a PID
+- [ ] ServerInfo dataclass holds connection stats, TPS, cache hit ratio, temp files
+- [ ] get_server_info() aggregates server statistics from various pg_stat views

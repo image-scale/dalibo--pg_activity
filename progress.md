@@ -15,3 +15,10 @@
 **Commit**: Add utility functions for formatting duration, sizes, and text.
 **Acceptance**: 10/10 criteria met
 **Verification**: tests FAIL on previous state (ImportError), PASS on current state (106 tests)
+
+## Round 3
+**Task**: Task 3 — Configuration system with profiles
+**Files created**: pgmonitor/config.py, tests/test_config.py
+**Commit**: Add configuration system with INI file parsing and built-in profiles.
+**Acceptance**: 11/11 criteria met
+**Verification**: tests FAIL on previous state (ImportError), PASS on current state (142 tests)
