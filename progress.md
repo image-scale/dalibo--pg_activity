@@ -50,3 +50,10 @@
 **Commit**: Add terminal rendering module with columns, headers, process display, and footer.
 **Acceptance**: 10/10 criteria met
 **Verification**: tests FAIL on previous state (ImportError), PASS on current state (305 tests)
+
+## Round 8
+**Task**: Task 8 — Main UI loop and CLI
+**Files created**: pgmonitor/main.py, tests/test_main.py
+**Commit**: Add main entry point with CLI argument parsing and interactive UI loop.
+**Acceptance**: 10/10 criteria met
+**Verification**: tests FAIL on previous state (ImportError), PASS on current state (335 tests)

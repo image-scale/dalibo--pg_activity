@@ -11,4 +11,4 @@ Implement the project in a layered approach: start with core data models and uti
 - [x] Task 5: System monitoring with psutil - collect memory, swap, load average, per-process CPU/memory/IO metrics, integrate system data with process information
 - [x] Task 6: Keyboard handling and action handlers - key bindings for navigation, sorting, mode switching, refresh rate control, process selection, map keystrokes to UI state changes
 - [x] Task 7: Terminal rendering with blessed - header display with server stats, process table with columns, footer with help keys, color-coded output, query wrapping
-- [>] Task 8: Main UI loop and CLI - integrate all components into interactive loop, command line argument parsing, process list navigation, cancel/terminate confirmations
+- [x] Task 8: Main UI loop and CLI - integrate all components into interactive loop, command line argument parsing, process list navigation, cancel/terminate confirmations

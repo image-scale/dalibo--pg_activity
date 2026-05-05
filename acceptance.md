@@ -98,3 +98,17 @@
 - [x] render_footer shows help keys (F1/1, F2/2, F3/3, Space, q, h)
 - [x] Colors module provides color functions for state, duration, wait status
 - [x] boxed widget draws bordered message boxes for confirmations
+
+## Task 8: Main UI loop and CLI
+
+### Acceptance Criteria
+- [x] CLI accepts --host, --port, --dbname, --user connection arguments
+- [x] CLI accepts --profile for loading configuration profiles
+- [x] CLI accepts --refresh for setting refresh interval
+- [x] CLI accepts --duration-mode for initial duration mode
+- [x] main() function runs interactive terminal loop
+- [x] Interactive loop handles keyboard navigation (up/down, page up/down, home/end)
+- [x] Interactive loop handles mode switching (1/2/3, F1/F2/F3)
+- [x] Interactive loop handles pause/unpause with Space
+- [x] Process cancel/terminate requires y/n confirmation
+- [x] Help screen (h key) displays key bindings
